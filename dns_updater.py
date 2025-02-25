@@ -172,21 +172,25 @@ def filter_results(search_query, result_table):
 
 # Function to fetch DNS zones when the combobox is clicked
 def on_combobox_click(event):
-    dns_zone_combobox["values"] = fetch_dns_zones()
+    threading.Thread(target=lambda: dns_zone_combobox.config(values=fetch_dns_zones())).start()
 
 # GUI Setup
 root = tk.Tk()
 root.title("DNS Updater (A & CNAME Records)")
 
-# DNS Zone Combobox
-tk.Label(root, text="Select DNS Zone:").pack(pady=10)
-dns_zone_combobox = ttk.Combobox(root)
-dns_zone_combobox.pack(pady=5)
-dns_zone_combobox.bind("<Button-1>", on_combobox_click)
+# Frame for file selection and DNS zone
+file_frame = tk.Frame(root)
+file_frame.pack(pady=10)
 
-# File selection and update buttons
-tk.Label(root, text="Select a CSV file to update A & CNAME records:").pack(pady=10)
-tk.Button(root, text="Browse CSV", command=browse_file).pack(pady=5)
+# File selection button
+tk.Label(file_frame, text="Select a CSV file to update A & CNAME records:").grid(row=0, column=0, padx=5)
+tk.Button(file_frame, text="Browse CSV", command=browse_file).grid(row=0, column=1, padx=5)
+
+# DNS Zone Combobox
+tk.Label(file_frame, text="Select DNS Zone:").grid(row=0, column=2, padx=5)
+dns_zone_combobox = ttk.Combobox(file_frame)
+dns_zone_combobox.grid(row=0, column=3, padx=5)
+dns_zone_combobox.bind("<Button-1>", on_combobox_click)
 
 # Frame for checkboxes, apply, clear, and search box
 frame = tk.Frame(root)
