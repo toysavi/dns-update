@@ -170,33 +170,42 @@ def filter_results(search_query, result_table):
     result_table.tag_configure("match", background="white")
     result_table.tag_configure("no_match", background="gray")
 
+# Function to fetch DNS zones when the combobox is clicked
+def on_combobox_click(event):
+    dns_zone_combobox["values"] = fetch_dns_zones()
+
 # GUI Setup
 root = tk.Tk()
 root.title("DNS Updater (A & CNAME Records)")
 
 # DNS Zone Combobox
 tk.Label(root, text="Select DNS Zone:").pack(pady=10)
-dns_zone_combobox = ttk.Combobox(root, values=fetch_dns_zones())
+dns_zone_combobox = ttk.Combobox(root)
 dns_zone_combobox.pack(pady=5)
+dns_zone_combobox.bind("<Button-1>", on_combobox_click)
 
 # File selection and update buttons
 tk.Label(root, text="Select a CSV file to update A & CNAME records:").pack(pady=10)
 tk.Button(root, text="Browse CSV", command=browse_file).pack(pady=5)
 
+# Frame for checkboxes, apply, clear, and search box
+frame = tk.Frame(root)
+frame.pack(pady=10)
+
 # Checkboxes for selecting record types to update
 update_a = tk.BooleanVar()
 update_cname = tk.BooleanVar()
-tk.Checkbutton(root, text="Update A Records", variable=update_a).pack(pady=5)
-tk.Checkbutton(root, text="Update CNAME Records", variable=update_cname).pack(pady=5)
+tk.Checkbutton(frame, text="Update A Records", variable=update_a).grid(row=0, column=0, padx=5)
+tk.Checkbutton(frame, text="Update CNAME Records", variable=update_cname).grid(row=0, column=1, padx=5)
 
 # Apply and Clear buttons
-tk.Button(root, text="Apply Updates", command=lambda: apply_updates(result_table, progress_bar, update_a, update_cname)).pack(pady=5)
-tk.Button(root, text="Clear", command=lambda: clear_information(result_table, progress_bar, update_a, update_cname)).pack(pady=5)
+tk.Button(frame, text="Apply Updates", command=lambda: apply_updates(result_table, progress_bar, update_a, update_cname)).grid(row=0, column=2, padx=5)
+tk.Button(frame, text="Clear", command=lambda: clear_information(result_table, progress_bar, update_a, update_cname)).grid(row=0, column=3, padx=5)
 
 # Search box
-tk.Label(root, text="Search:").pack(pady=10)
-search_entry = tk.Entry(root)
-search_entry.pack(pady=5)
+tk.Label(frame, text="Search:").grid(row=0, column=4, padx=5)
+search_entry = tk.Entry(frame)
+search_entry.grid(row=0, column=5, padx=5)
 search_entry.bind("<KeyRelease>", lambda event: filter_results(search_entry.get(), result_table))
 
 # Result table
