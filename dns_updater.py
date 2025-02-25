@@ -4,6 +4,35 @@ import pandas as pd
 import threading
 import os
 
+# Event to signal when the main window is ready
+main_window_ready = threading.Event()
+
+# Function to show the loading screen
+def show_loading_screen():
+    loading_root = tk.Tk()
+    loading_root.title("Loading")
+    loading_label = tk.Label(loading_root, text="Loading, please wait...", font=("Helvetica", 16))
+    loading_label.pack(pady=40, padx=40)
+
+    # Center the loading screen
+    loading_root.update_idletasks()
+    width = loading_root.winfo_width()
+    height = loading_root.winfo_height()
+    x = (loading_root.winfo_screenwidth() // 2) - (width // 2)
+    y = (loading_root.winfo_screenheight() // 2) - (height // 2)
+    loading_root.geometry(f'{width}x{height}+{x}+{y}')
+
+    def wait_for_main_window():
+        main_window_ready.wait()
+        loading_root.destroy()
+        show_main_window()
+
+    threading.Thread(target=wait_for_main_window).start()
+    loading_root.mainloop()
+
+# Show the loading screen
+threading.Thread(target=show_loading_screen).start()
+
 # Cache for DNS zones and CSV data
 dns_zones_cache = None
 csv_data_cache = None
@@ -252,26 +281,11 @@ def show_main_window():
     # Exit button
     tk.Button(root, text="Exit", command=root.quit).pack(pady=5)
 
+    # Signal that the main window is ready
+    main_window_ready.set()
+
     # Start the GUI
     root.mainloop()
 
-# Function to show the loading screen
-def show_loading_screen():
-    loading_root = tk.Tk()
-    loading_root.title("Loading")
-    loading_label = tk.Label(loading_root, text="Loading, please wait...", font=("Helvetica", 16))
-    loading_label.pack(pady=40, padx=40)
-
-    # Center the loading screen
-    loading_root.update_idletasks()
-    width = loading_root.winfo_width()
-    height = loading_root.winfo_height()
-    x = (loading_root.winfo_screenwidth() // 2) - (width // 2)
-    y = (loading_root.winfo_screenheight() // 2) - (height // 2)
-    loading_root.geometry(f'{width}x{height}+{x}+{y}')
-
-    threading.Thread(target=lambda: (loading_root.destroy(), show_main_window())).start()
-    loading_root.mainloop()
-
-# Show the loading screen
-show_loading_screen()
+# Initialize the main application in the background
+threading.Thread(target=show_main_window).start()
