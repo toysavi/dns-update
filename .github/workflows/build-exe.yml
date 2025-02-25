@@ -3,8 +3,8 @@ name: Build Windows EXE
 on:
   push:
     branches:
-      - main  # Runs the workflow when you push to the main branch
-  workflow_dispatch:  # Allows manual runs
+      - main
+  workflow_dispatch:
 
 jobs:
   build:
@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -29,7 +29,7 @@ jobs:
           pyinstaller --onefile --windowed --icon=icon.ico dns_updater.py
 
       - name: Upload EXE Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dns-updater-exe
           path: dist/dns_updater.exe
