@@ -85,7 +85,7 @@ def read_csv_file(file_path):
         return pd.DataFrame()
 
 # Function to update A and CNAME records in AD DNS
-def update_dns(csv_file, result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label):
+def update_dns(csv_file, result_table, progress_bar, progress_label, update_a, update_cname, a_count_label, cname_count_label, total_count_label):
     try:
         # Delay import of pythoncom and win32com.client until needed
         import pythoncom
@@ -168,6 +168,9 @@ def update_dns(csv_file, result_table, progress_bar, update_a, update_cname, a_c
             cname_count_label.config(text=f"CNAME Records: {cname_count}")
             total_count_label.config(text=f"Total Records: {a_count + cname_count}")
 
+            # Update progress label
+            progress_label.config(text=f"Progress: {int((index + 1) / total_records * 100)}%")
+
     except Exception as e:
         messagebox.showerror("Error", f"Error: {str(e)}")
     finally:
@@ -185,18 +188,19 @@ def browse_file():
         threading.Thread(target=read_file_in_background, args=(file_path,)).start()
 
 # Function to apply DNS updates
-def apply_updates(result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label):
+def apply_updates(result_table, progress_bar, progress_label, update_a, update_cname, a_count_label, cname_count_label, total_count_label):
     if csv_data_cache is None:
         messagebox.showerror("Error", "No CSV file selected.")
         return
-    threading.Thread(target=update_dns, args=(csv_data_cache["file_path"], result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label)).start()
+    threading.Thread(target=update_dns, args=(csv_data_cache["file_path"], result_table, progress_bar, progress_label, update_a, update_cname, a_count_label, cname_count_label, total_count_label)).start()
 
 # Function to clear the information
-def clear_information(result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label):
+def clear_information(result_table, progress_bar, progress_label, update_a, update_cname, a_count_label, cname_count_label, total_count_label):
     global csv_data_cache
     csv_data_cache = None
     result_table.delete(*result_table.get_children())
     progress_bar["value"] = 0
+    progress_label.config(text="Progress: 0%")
     update_a.set(False)
     update_cname.set(False)
     a_count_label.config(text="A Records: 0")
@@ -250,8 +254,8 @@ def show_main_window():
     tk.Checkbutton(frame, text="Update CNAME Records", variable=update_cname).grid(row=0, column=1, padx=5)
 
     # Apply and Clear buttons
-    tk.Button(frame, text="Apply Updates", command=lambda: apply_updates(result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label)).grid(row=0, column=2, padx=5)
-    tk.Button(frame, text="Clear", command=lambda: clear_information(result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label)).grid(row=0, column=3, padx=5)
+    tk.Button(frame, text="Apply Updates", command=lambda: apply_updates(result_table, progress_bar, progress_label, update_a, update_cname, a_count_label, cname_count_label, total_count_label)).grid(row=0, column=2, padx=5)
+    tk.Button(frame, text="Clear", command=lambda: clear_information(result_table, progress_bar, progress_label, update_a, update_cname, a_count_label, cname_count_label, total_count_label)).grid(row=0, column=3, padx=5)
 
     # Search box
     tk.Label(frame, text="Search:").grid(row=0, column=4, padx=5)
@@ -271,12 +275,14 @@ def show_main_window():
     progress_frame.pack(pady=10)
     progress_bar = ttk.Progressbar(progress_frame, orient="horizontal", length=400, mode="determinate")
     progress_bar.grid(row=0, column=0, padx=5)
+    progress_label = tk.Label(progress_frame, text="Progress: 0%")
+    progress_label.grid(row=0, column=1, padx=5)
     a_count_label = tk.Label(progress_frame, text="A Records: 0")
-    a_count_label.grid(row=0, column=1, padx=5)
+    a_count_label.grid(row=0, column=2, padx=5)
     cname_count_label = tk.Label(progress_frame, text="CNAME Records: 0")
-    cname_count_label.grid(row=0, column=2, padx=5)
+    cname_count_label.grid(row=0, column=3, padx=5)
     total_count_label = tk.Label(progress_frame, text="Total Records: 0")
-    total_count_label.grid(row=0, column=3, padx=5)
+    total_count_label.grid(row=0, column=4, padx=5)
 
     # Exit button
     tk.Button(root, text="Exit", command=root.quit).pack(pady=5)
