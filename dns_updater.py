@@ -259,9 +259,18 @@ def show_main_window():
 def show_loading_screen():
     loading_root = tk.Tk()
     loading_root.title("Loading")
-    loading_label = tk.Label(loading_root, text="Loading, please wait...")
-    loading_label.pack(pady=20, padx=20)
-    loading_root.after(2000, lambda: (loading_root.destroy(), show_main_window()))  # Adjust the delay as needed
+    loading_label = tk.Label(loading_root, text="Loading, please wait...", font=("Helvetica", 16))
+    loading_label.pack(pady=40, padx=40)
+
+    # Center the loading screen
+    loading_root.update_idletasks()
+    width = loading_root.winfo_width()
+    height = loading_root.winfo_height()
+    x = (loading_root.winfo_screenwidth() // 2) - (width // 2)
+    y = (loading_root.winfo_screenheight() // 2) - (height // 2)
+    loading_root.geometry(f'{width}x{height}+{x}+{y}')
+
+    threading.Thread(target=lambda: (loading_root.destroy(), show_main_window())).start()
     loading_root.mainloop()
 
 # Show the loading screen
