@@ -4,8 +4,16 @@ import pandas as pd
 import threading
 import os
 
+# Cache for DNS zones and CSV data
+dns_zones_cache = None
+csv_data_cache = None
+
 # Function to fetch DNS zones (alias names)
 def fetch_dns_zones():
+    global dns_zones_cache
+    if dns_zones_cache is not None:
+        return dns_zones_cache
+
     try:
         # Delay import of pythoncom and win32com.client until needed
         import pythoncom
@@ -23,7 +31,8 @@ def fetch_dns_zones():
         dns_zones = set(record.OwnerName for record in a_records)
         dns_zones.update(record.OwnerName for record in cname_records)
 
-        return sorted(dns_zones)
+        dns_zones_cache = sorted(dns_zones)
+        return dns_zones_cache
 
     except Exception as e:
         messagebox.showerror("Error", f"Failed to fetch DNS zones: {str(e)}")
@@ -32,8 +41,22 @@ def fetch_dns_zones():
     finally:
         pythoncom.CoUninitialize()
 
+# Function to read CSV file and cache the data
+def read_csv_file(file_path):
+    global csv_data_cache
+    if csv_data_cache is not None and csv_data_cache["file_path"] == file_path:
+        return csv_data_cache["data"]
+
+    try:
+        df = pd.read_csv(file_path)
+        csv_data_cache = {"file_path": file_path, "data": df}
+        return df
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to read CSV file: {str(e)}")
+        return pd.DataFrame()
+
 # Function to update A and CNAME records in AD DNS
-def update_dns(csv_file, dns_zone, result_table):
+def update_dns(csv_file, dns_zone, result_table, progress_bar):
     try:
         # Delay import of pythoncom and win32com.client until needed
         import pythoncom
@@ -44,14 +67,17 @@ def update_dns(csv_file, dns_zone, result_table):
         dns_client = win32com.client.GetObject("winmgmts:\\\\.\\root\\MicrosoftDNS")
         
         # Read CSV file
-        df = pd.read_csv(csv_file)
+        df = read_csv_file(csv_file)
 
         # Confirm before applying changes
         confirm = messagebox.askyesno("Confirm Update", f"Update {len(df)} DNS records?")
         if not confirm:
             return
         
-        for _, row in df.iterrows():
+        total_records = len(df)
+        progress_bar["maximum"] = total_records
+
+        for index, row in df.iterrows():
             record_type = row["RecordType"].strip().upper()
             record_name = row["RecordName"].strip()
             new_value = row["NewValue"].strip()
@@ -101,6 +127,7 @@ def update_dns(csv_file, dns_zone, result_table):
 
             # Update result table
             result_table.insert("", "end", values=(record_type, record_name, "", new_value, status))
+            progress_bar["value"] = index + 1
 
     except Exception as e:
         messagebox.showerror("Error", f"Error: {str(e)}")
@@ -108,12 +135,12 @@ def update_dns(csv_file, dns_zone, result_table):
         pythoncom.CoUninitialize()
 
 # Function to browse and select CSV
-def browse_file(result_table):
+def browse_file(result_table, progress_bar):
     file_path = filedialog.askopenfilename(initialdir="C:\\", filetypes=[("CSV Files", "*.csv")])
     if file_path:
         # Get DNS Zone from the combobox
         dns_zone = dns_zone_combobox.get().strip() or "example.com"  # Default to "example.com" if empty
-        threading.Thread(target=update_dns, args=(file_path, dns_zone, result_table)).start()
+        threading.Thread(target=update_dns, args=(file_path, dns_zone, result_table, progress_bar)).start()
 
 # GUI Setup
 root = tk.Tk()
@@ -126,7 +153,7 @@ dns_zone_combobox.pack(pady=5)
 
 # File selection and update buttons
 tk.Label(root, text="Select a CSV file to update A & CNAME records:").pack(pady=10)
-tk.Button(root, text="Browse CSV", command=lambda: browse_file(result_table)).pack(pady=5)
+tk.Button(root, text="Browse CSV", command=lambda: browse_file(result_table, progress_bar)).pack(pady=5)
 
 # Result table
 columns = ("Record Type", "Source Name", "Source IP", "Destination Name", "Destination IP", "Status")
@@ -134,6 +161,10 @@ result_table = ttk.Treeview(root, columns=columns, show="headings")
 for col in columns:
     result_table.heading(col, text=col)
 result_table.pack(pady=10, fill="both", expand=True)
+
+# Progress bar
+progress_bar = ttk.Progressbar(root, orient="horizontal", length=400, mode="determinate")
+progress_bar.pack(pady=10)
 
 # Exit button
 tk.Button(root, text="Exit", command=root.quit).pack(pady=5)
