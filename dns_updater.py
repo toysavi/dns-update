@@ -56,7 +56,7 @@ def read_csv_file(file_path):
         return pd.DataFrame()
 
 # Function to update A and CNAME records in AD DNS
-def update_dns(csv_file, dns_zone, result_table, progress_bar):
+def update_dns(csv_file, result_table, progress_bar, update_a, update_cname):
     try:
         # Delay import of pythoncom and win32com.client until needed
         import pythoncom
@@ -84,10 +84,10 @@ def update_dns(csv_file, dns_zone, result_table, progress_bar):
             status = "Unknown"
 
             try:
-                if record_type == "A":
+                if record_type == "A" and update_a:
                     # Update A Record (Change IP Address)
                     existing_records = dns_client.ExecQuery(
-                        f"SELECT * FROM MicrosoftDNS_AType WHERE ContainerName='{dns_zone}' AND OwnerName='{record_name}'"
+                        f"SELECT * FROM MicrosoftDNS_AType WHERE OwnerName='{record_name}'"
                     )
 
                     if len(existing_records) > 0:
@@ -97,14 +97,14 @@ def update_dns(csv_file, dns_zone, result_table, progress_bar):
 
                     # Create new A record
                     dns_client.Get("MicrosoftDNS_AType").CreateInstanceFromPropertyData(
-                        dns_zone, record_name, 600, new_value
+                        record_name.split('.')[-2], record_name, 600, new_value
                     )
                     status = "Successful"
 
-                elif record_type == "CNAME":
+                elif record_type == "CNAME" and update_cname:
                     # Update CNAME Record
                     existing_records = dns_client.ExecQuery(
-                        f"SELECT * FROM MicrosoftDNS_CNAMEType WHERE ContainerName='{dns_zone}' AND OwnerName='{record_name}'"
+                        f"SELECT * FROM MicrosoftDNS_CNAMEType WHERE OwnerName='{record_name}'"
                     )
 
                     if len(existing_records) > 0:
@@ -114,7 +114,7 @@ def update_dns(csv_file, dns_zone, result_table, progress_bar):
 
                     # Create new CNAME record
                     dns_client.Get("MicrosoftDNS_CNAMEType").CreateInstanceFromPropertyData(
-                        dns_zone, record_name, 600, new_value
+                        record_name.split('.')[-2], record_name, 600, new_value
                     )
                     status = "Successful"
 
@@ -135,12 +135,40 @@ def update_dns(csv_file, dns_zone, result_table, progress_bar):
         pythoncom.CoUninitialize()
 
 # Function to browse and select CSV
-def browse_file(result_table, progress_bar):
-    file_path = filedialog.askopenfilename(initialdir="C:\\", filetypes=[("CSV Files", "*.csv")])
+def browse_file():
+    file_path = filedialog.askopenfilename(initialdir=os.path.expanduser("~"), filetypes=[("CSV Files", "*.csv")])
     if file_path:
-        # Get DNS Zone from the combobox
-        dns_zone = dns_zone_combobox.get().strip() or "example.com"  # Default to "example.com" if empty
-        threading.Thread(target=update_dns, args=(file_path, dns_zone, result_table, progress_bar)).start()
+        global csv_data_cache
+        csv_data_cache = {"file_path": file_path, "data": read_csv_file(file_path)}
+        messagebox.showinfo("File Selected", f"Selected file: {file_path}")
+
+# Function to apply DNS updates
+def apply_updates(result_table, progress_bar, update_a, update_cname):
+    if csv_data_cache is None:
+        messagebox.showerror("Error", "No CSV file selected.")
+        return
+    threading.Thread(target=update_dns, args=(csv_data_cache["file_path"], result_table, progress_bar, update_a.get(), update_cname.get())).start()
+
+# Function to clear the information
+def clear_information(result_table, progress_bar, update_a, update_cname):
+    global csv_data_cache
+    csv_data_cache = None
+    result_table.delete(*result_table.get_children())
+    progress_bar["value"] = 0
+    update_a.set(False)
+    update_cname.set(False)
+    messagebox.showinfo("Cleared", "Information cleared.")
+
+# Function to filter the result table based on the search query
+def filter_results(search_query, result_table):
+    for row in result_table.get_children():
+        values = result_table.item(row, "values")
+        if any(search_query.lower() in str(value).lower() for value in values):
+            result_table.item(row, tags=("match",))
+        else:
+            result_table.item(row, tags=("no_match",))
+    result_table.tag_configure("match", background="white")
+    result_table.tag_configure("no_match", background="gray")
 
 # GUI Setup
 root = tk.Tk()
@@ -153,7 +181,23 @@ dns_zone_combobox.pack(pady=5)
 
 # File selection and update buttons
 tk.Label(root, text="Select a CSV file to update A & CNAME records:").pack(pady=10)
-tk.Button(root, text="Browse CSV", command=lambda: browse_file(result_table, progress_bar)).pack(pady=5)
+tk.Button(root, text="Browse CSV", command=browse_file).pack(pady=5)
+
+# Checkboxes for selecting record types to update
+update_a = tk.BooleanVar()
+update_cname = tk.BooleanVar()
+tk.Checkbutton(root, text="Update A Records", variable=update_a).pack(pady=5)
+tk.Checkbutton(root, text="Update CNAME Records", variable=update_cname).pack(pady=5)
+
+# Apply and Clear buttons
+tk.Button(root, text="Apply Updates", command=lambda: apply_updates(result_table, progress_bar, update_a, update_cname)).pack(pady=5)
+tk.Button(root, text="Clear", command=lambda: clear_information(result_table, progress_bar, update_a, update_cname)).pack(pady=5)
+
+# Search box
+tk.Label(root, text="Search:").pack(pady=10)
+search_entry = tk.Entry(root)
+search_entry.pack(pady=5)
+search_entry.bind("<KeyRelease>", lambda event: filter_results(search_entry.get(), result_table))
 
 # Result table
 columns = ("Record Type", "Source Name", "Source IP", "Destination Name", "Destination IP", "Status")
