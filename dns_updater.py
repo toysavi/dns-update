@@ -151,7 +151,7 @@ def browse_file():
         csv_data_cache = {"file_path": file_path, "data": read_csv_file(file_path)}
         messagebox.showinfo("File Selected", f"Selected file: {file_path}")
 
-    file_path = filedialog.askopenfilename(initialdir=os.path.expanduser("~"), filetypes=[("CSV Files", "*.csv")])
+    file_path = filedialog.askopenfilename(initialdir="C:\\", filetypes=[("CSV Files", "*.csv")])
     if file_path:
         threading.Thread(target=read_file_in_background, args=(file_path,)).start()
 
