@@ -56,7 +56,7 @@ def read_csv_file(file_path):
         return pd.DataFrame()
 
 # Function to update A and CNAME records in AD DNS
-def update_dns(csv_file, result_table, progress_bar, update_a, update_cname):
+def update_dns(csv_file, result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label):
     try:
         # Delay import of pythoncom and win32com.client until needed
         import pythoncom
@@ -76,6 +76,9 @@ def update_dns(csv_file, result_table, progress_bar, update_a, update_cname):
         
         total_records = len(df)
         progress_bar["maximum"] = total_records
+
+        a_count = 0
+        cname_count = 0
 
         for index, row in df.iterrows():
             record_type = row["RecordType"].strip().upper()
@@ -100,6 +103,7 @@ def update_dns(csv_file, result_table, progress_bar, update_a, update_cname):
                         record_name.split('.')[-2], record_name, 600, new_value
                     )
                     status = "Successful"
+                    a_count += 1
 
                 elif record_type == "CNAME" and update_cname:
                     # Update CNAME Record
@@ -117,6 +121,7 @@ def update_dns(csv_file, result_table, progress_bar, update_a, update_cname):
                         record_name.split('.')[-2], record_name, 600, new_value
                     )
                     status = "Successful"
+                    cname_count += 1
 
                 else:
                     raise Exception(f"Invalid RecordType: {record_type}")
@@ -128,6 +133,11 @@ def update_dns(csv_file, result_table, progress_bar, update_a, update_cname):
             # Update result table
             result_table.insert("", "end", values=(record_type, record_name, "", new_value, status))
             progress_bar["value"] = index + 1
+
+            # Update count labels
+            a_count_label.config(text=f"A Records: {a_count}")
+            cname_count_label.config(text=f"CNAME Records: {cname_count}")
+            total_count_label.config(text=f"Total Records: {a_count + cname_count}")
 
     except Exception as e:
         messagebox.showerror("Error", f"Error: {str(e)}")
@@ -143,20 +153,23 @@ def browse_file():
         messagebox.showinfo("File Selected", f"Selected file: {file_path}")
 
 # Function to apply DNS updates
-def apply_updates(result_table, progress_bar, update_a, update_cname):
+def apply_updates(result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label):
     if csv_data_cache is None:
         messagebox.showerror("Error", "No CSV file selected.")
         return
-    threading.Thread(target=update_dns, args=(csv_data_cache["file_path"], result_table, progress_bar, update_a.get(), update_cname.get())).start()
+    threading.Thread(target=update_dns, args=(csv_data_cache["file_path"], result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label)).start()
 
 # Function to clear the information
-def clear_information(result_table, progress_bar, update_a, update_cname):
+def clear_information(result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label):
     global csv_data_cache
     csv_data_cache = None
     result_table.delete(*result_table.get_children())
     progress_bar["value"] = 0
     update_a.set(False)
     update_cname.set(False)
+    a_count_label.config(text="A Records: 0")
+    cname_count_label.config(text="CNAME Records: 0")
+    total_count_label.config(text="Total Records: 0")
     messagebox.showinfo("Cleared", "Information cleared.")
 
 # Function to filter the result table based on the search query
@@ -203,8 +216,8 @@ tk.Checkbutton(frame, text="Update A Records", variable=update_a).grid(row=0, co
 tk.Checkbutton(frame, text="Update CNAME Records", variable=update_cname).grid(row=0, column=1, padx=5)
 
 # Apply and Clear buttons
-tk.Button(frame, text="Apply Updates", command=lambda: apply_updates(result_table, progress_bar, update_a, update_cname)).grid(row=0, column=2, padx=5)
-tk.Button(frame, text="Clear", command=lambda: clear_information(result_table, progress_bar, update_a, update_cname)).grid(row=0, column=3, padx=5)
+tk.Button(frame, text="Apply Updates", command=lambda: apply_updates(result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label)).grid(row=0, column=2, padx=5)
+tk.Button(frame, text="Clear", command=lambda: clear_information(result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label)).grid(row=0, column=3, padx=5)
 
 # Search box
 tk.Label(frame, text="Search:").grid(row=0, column=4, padx=5)
@@ -219,9 +232,17 @@ for col in columns:
     result_table.heading(col, text=col)
 result_table.pack(pady=10, fill="both", expand=True)
 
-# Progress bar
-progress_bar = ttk.Progressbar(root, orient="horizontal", length=400, mode="determinate")
-progress_bar.pack(pady=10)
+# Progress bar and count labels
+progress_frame = tk.Frame(root)
+progress_frame.pack(pady=10)
+progress_bar = ttk.Progressbar(progress_frame, orient="horizontal", length=400, mode="determinate")
+progress_bar.grid(row=0, column=0, padx=5)
+a_count_label = tk.Label(progress_frame, text="A Records: 0")
+a_count_label.grid(row=0, column=1, padx=5)
+cname_count_label = tk.Label(progress_frame, text="CNAME Records: 0")
+cname_count_label.grid(row=0, column=2, padx=5)
+total_count_label = tk.Label(progress_frame, text="Total Records: 0")
+total_count_label.grid(row=0, column=3, padx=5)
 
 # Exit button
 tk.Button(root, text="Exit", command=root.quit).pack(pady=5)
