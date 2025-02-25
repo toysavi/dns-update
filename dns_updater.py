@@ -1,13 +1,16 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import pandas as pd
-import pythoncom
 import threading
-import win32com.client
+import os
 
 # Function to update A and CNAME records in AD DNS
 def update_dns(csv_file, dns_zone, result_label):
     try:
+        # Delay import of pythoncom and win32com.client until needed
+        import pythoncom
+        import win32com.client
+
         # Connect to WMI DNS Client
         pythoncom.CoInitialize()
         dns_client = win32com.client.GetObject("winmgmts:\\\\.\\root\\MicrosoftDNS")
@@ -79,7 +82,7 @@ def update_dns(csv_file, dns_zone, result_label):
 
 # Function to browse and select CSV
 def browse_file(result_label):
-    file_path = filedialog.askopenfilename(filetypes=[("CSV Files", "*.csv")])
+    file_path = filedialog.askopenfilename(initialdir=os.path.expanduser("~"), filetypes=[("CSV Files", "*.csv")])
     if file_path:
         # Get DNS Zone from the entry field
         dns_zone = dns_zone_entry.get().strip() or "example.com"  # Default to "example.com" if empty
