@@ -1,13 +1,10 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog
 import pandas as pd
 import win32com.client
 
-# DNS Zone Name (Change if necessary)
-DNS_ZONE = "example.com"
-
 # Function to update A and CNAME records in AD DNS
-def update_dns(csv_file):
+def update_dns(csv_file, dns_zone, result_label):
     try:
         # Connect to WMI DNS Client
         dns_client = win32com.client.GetObject("winmgmts:\\\\.\\root\\MicrosoftDNS")
@@ -32,7 +29,7 @@ def update_dns(csv_file):
                 if record_type == "A":
                     # Update A Record (Change IP Address)
                     existing_records = dns_client.ExecQuery(
-                        f"SELECT * FROM MicrosoftDNS_AType WHERE ContainerName='{DNS_ZONE}' AND OwnerName='{record_name}'"
+                        f"SELECT * FROM MicrosoftDNS_AType WHERE ContainerName='{dns_zone}' AND OwnerName='{record_name}'"
                     )
 
                     if len(existing_records) > 0:
@@ -42,13 +39,13 @@ def update_dns(csv_file):
 
                     # Create new A record
                     dns_client.Get("MicrosoftDNS_AType").CreateInstanceFromPropertyData(
-                        DNS_ZONE, record_name, 600, new_value
+                        dns_zone, record_name, 600, new_value
                     )
 
                 elif record_type == "CNAME":
                     # Update CNAME Record
                     existing_records = dns_client.ExecQuery(
-                        f"SELECT * FROM MicrosoftDNS_CNAMEType WHERE ContainerName='{DNS_ZONE}' AND OwnerName='{record_name}'"
+                        f"SELECT * FROM MicrosoftDNS_CNAMEType WHERE ContainerName='{dns_zone}' AND OwnerName='{record_name}'"
                     )
 
                     if len(existing_records) > 0:
@@ -58,7 +55,7 @@ def update_dns(csv_file):
 
                     # Create new CNAME record
                     dns_client.Get("MicrosoftDNS_CNAMEType").CreateInstanceFromPropertyData(
-                        DNS_ZONE, record_name, 600, new_value
+                        dns_zone, record_name, 600, new_value
                     )
 
                 else:
@@ -70,24 +67,38 @@ def update_dns(csv_file):
                 print(f"Failed to update {record_name}: {e}")
                 failed_count += 1
 
-        messagebox.showinfo("Update Complete", f"Success: {success_count}, Failed: {failed_count}")
+        result_label.config(text=f"Update Complete\nSuccess: {success_count}\nFailed: {failed_count}")
 
     except Exception as e:
-        messagebox.showerror("Error", str(e))
+        result_label.config(text=f"Error: {str(e)}")
 
 # Function to browse and select CSV
-def browse_file():
+def browse_file(result_label):
     file_path = filedialog.askopenfilename(filetypes=[("CSV Files", "*.csv")])
     if file_path:
-        update_dns(file_path)
+        # Get DNS Zone from the entry field
+        dns_zone = dns_zone_entry.get().strip() or "example.com"  # Default to "example.com" if empty
+        update_dns(file_path, dns_zone, result_label)
 
 # GUI Setup
 root = tk.Tk()
 root.title("DNS Updater (A & CNAME Records)")
 
-tk.Label(root, text="Select a CSV file to update A & CNAME records:").pack(pady=10)
-tk.Button(root, text="Browse CSV", command=browse_file).pack(pady=5)
-tk.Button(root, text="Exit", command=
-root.quit).pack(pady=5)
+# DNS Zone Entry
+tk.Label(root, text="Enter DNS Zone (optional, default is 'example.com'):").pack(pady=10)
+dns_zone_entry = tk.Entry(root)
+dns_zone_entry.pack(pady=5)
 
+# File selection and update buttons
+tk.Label(root, text="Select a CSV file to update A & CNAME records:").pack(pady=10)
+tk.Button(root, text="Browse CSV", command=lambda: browse_file(result_label)).pack(pady=5)
+
+# Result label
+result_label = tk.Label(root, text="", justify="left")
+result_label.pack(pady=10)
+
+# Exit button
+tk.Button(root, text="Exit", command=root.quit).pack(pady=5)
+
+# Start the GUI
 root.mainloop()
