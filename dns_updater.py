@@ -50,6 +50,10 @@ def read_csv_file(file_path):
     try:
         df = pd.read_csv(file_path)
         csv_data_cache = {"file_path": file_path, "data": df}
+        
+        # Update result table to show CSV upload success message
+        result_table.insert("", "end", values=("CSV is uploaded", "", "", "", ""))
+
         return df
     except Exception as e:
         messagebox.showerror("Error", f"Failed to read CSV file: {str(e)}")
@@ -255,7 +259,16 @@ def show_main_window():
     total_count_label = tk.Label(progress_frame, text="Total Records: 0")
     total_count_label.grid(row=0, column=3, padx=5)
 
+    # Search box
+    search_frame = tk.Frame(root)
+    search_frame.pack(pady=10)
+
+    tk.Label(search_frame, text="Search:").grid(row=0, column=0, padx=5)
+    search_entry = tk.Entry(search_frame)
+    search_entry.grid(row=0, column=1, padx=5)
+    search_entry.bind("<KeyRelease>", lambda event: filter_results(event.widget.get(), result_table))
+
     root.mainloop()
 
-# Run the main window
-show_main_window()
+if __name__ == "__main__":
+    show_main_window()
