@@ -1,0 +1,38 @@
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import subprocess
+
+app = Flask(__name__)
+CORS(app)
+
+# Function to run PowerShell commands
+def run_powershell(command):
+    process = subprocess.run(["powershell", "-Command", command], capture_output=True, text=True)
+    return process.stdout if process.returncode == 0 else process.stderr
+
+# API to update DNS
+@app.route('/update-dns', methods=['POST'])
+def update_dns():
+    data = request.json
+    records = data.get("records", [])
+    record_type = data.get("recordType", "Both")
+
+    updated_records = []
+    for record in records:
+        r_type, src_alias, src_point, des_alias, des_point = record
+
+        if record_type in ["A", "Both"] and r_type == "A":
+            command = f"Set-DnsServerResourceRecord -ZoneName 'example.com' -Name '{src_alias}' -IPv4Address '{src_point}'"
+            result = run_powershell(command)
+        elif record_type in ["CNAME", "Both"] and r_type == "CNAME":
+            command = f"Set-DnsServerResourceRecord -ZoneName 'example.com' -Name '{src_alias}' -CName '{des_point}'"
+            result = run_powershell(command)
+        else:
+            result = "Skipped"
+
+        updated_records.append({"record": record, "status": result.strip()})
+
+    return jsonify({"message": "DNS records updated", "updated": updated_records})
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
