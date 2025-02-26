@@ -1,0 +1,42 @@
+name: Build DNS Updater
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Copy Icon to Build Directory
+      run: |
+        mkdir -p dist/img
+        cp img/icon.ico dist/img/
+
+    - name: Build the executable
+      run: |
+        pyinstaller --onefile --windowed --icon=dist/img/icon.ico src/dns_updater_gui.py
+
+    - name: Upload executable
+      uses: actions/upload-artifact@v2
+      with:
+        name: dns_updater-exe
+        path: dist/DNS_Updater.exe
