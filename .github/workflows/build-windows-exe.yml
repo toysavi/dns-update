@@ -26,6 +26,7 @@ jobs:
           cd frontend
           npm install
           npm run build
+          dir frontend  # Debug: Print the directory structure to confirm build folder exists
 
       # 🔹 Step 3: Move Frontend Build to Backend
       - name: Move Frontend Build to Backend
