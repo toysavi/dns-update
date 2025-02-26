@@ -267,27 +267,30 @@
             // Show progress bar and simulate progress
             document.getElementById('progress-container').style.display = 'block';
             let progress = 0;
-            const interval = setInterval(function() {
-                if (progress < 100) {
-                    progress += 10;
-                    document.getElementById('progress-bar').style.width = progress + '%';
-                    document.getElementById('progress-bar').textContent = progress + '%';
-                } else {
+            const progressBar = document.getElementById('progress-bar');
+
+            const interval = setInterval(() => {
+                progress += 10;
+                progressBar.style.width = `${progress}%`;
+                progressBar.textContent = `${progress}%`;
+
+                if (progress >= 100) {
                     clearInterval(interval);
-                    document.getElementById('progress-bar').textContent = 'Completed';
                 }
-            }, 500);
+            }, 500); // Simulate 10% progress every half second
         });
 
-        // Handle Clear button
+        // Handle Clear Data button
         document.getElementById('clear-data').addEventListener('click', function() {
-            // Reset all fields and tables
-            document.getElementById('csv-file').value = '';
+            // Reset everything
             document.getElementById('csv-preview').textContent = '';
-            document.getElementById('records-table').getElementsByTagName('tbody')[0].innerHTML = '';
             document.getElementById('total-records').textContent = '0';
             document.getElementById('a-records').textContent = '0';
             document.getElementById('cname-records').textContent = '0';
+            document.getElementById('filter-name').value = '';
+            document.getElementById('filter-ip').value = '';
+            document.getElementById('filter-type').value = '';
+            document.getElementById('records-table').getElementsByTagName('tbody')[0].innerHTML = '';
             document.getElementById('progress-container').style.display = 'none';
         });
     </script>
