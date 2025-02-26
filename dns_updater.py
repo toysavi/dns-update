@@ -52,8 +52,6 @@ def read_csv_file(file_path):
         csv_data_cache = {"file_path": file_path, "data": df}
         
         # Update result table to show CSV upload success message
-        result_table.insert("", "end", values=("CSV is uploaded", "", "", "", ""))
-
         return df
     except Exception as e:
         messagebox.showerror("Error", f"Failed to read CSV file: {str(e)}")
@@ -154,10 +152,13 @@ def update_dns(result_table, progress_bar, update_a, update_cname, a_count_label
         pythoncom.CoUninitialize()
 
 # Function to browse and select CSV
-def browse_file():
+def browse_file(result_table):
     def read_file_in_background(file_path):
         global csv_data_cache
         csv_data_cache = {"file_path": file_path, "data": read_csv_file(file_path)}
+        
+        # Update result table to show CSV upload success message after reading
+        result_table.insert("", "end", values=("CSV is uploaded", "", "", "", ""))
         messagebox.showinfo("File Selected", f"Selected file: {file_path}")
 
     file_path = filedialog.askopenfilename(initialdir="C:\\", filetypes=[("CSV Files", "*.csv")])
@@ -211,62 +212,53 @@ def show_main_window():
 
     # File selection button
     tk.Label(file_frame, text="Select a CSV file to update A & CNAME records:").grid(row=0, column=0, padx=5)
-    tk.Button(file_frame, text="Browse CSV", command=browse_file).grid(row=0, column=1, padx=5)
-
-    # DNS Zone Combobox
-    tk.Label(file_frame, text="Select DNS Zone:").grid(row=0, column=2, padx=5)
-    dns_zone_combobox = ttk.Combobox(file_frame)
-    dns_zone_combobox.grid(row=0, column=3, padx=5)
-    dns_zone_combobox.bind("<Button-1>", on_combobox_click)
-
-    # Frame for checkboxes, apply, clear, and search box
-    frame = tk.Frame(root)
-    frame.pack(pady=10)
-
-    # Checkboxes for selecting record types to update
-    update_a = tk.BooleanVar()
-    update_cname = tk.BooleanVar()
-    tk.Checkbutton(frame, text="Update A Records", variable=update_a).grid(row=0, column=0, padx=5)
-    tk.Checkbutton(frame, text="Update CNAME Records", variable=update_cname).grid(row=0, column=1, padx=5)
-
-    # Apply and Clear buttons
-    tk.Button(frame, text="Apply Updates", command=lambda: apply_updates(result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label)).grid(row=0, column=2, padx=5)
-    tk.Button(frame, text="Clear Information", command=lambda: clear_information(result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label)).grid(row=0, column=3, padx=5)
-
-    # Result Table
-    result_frame = tk.Frame(root)
-    result_frame.pack(pady=10)
-
-    result_table = ttk.Treeview(result_frame, columns=("Src Alias", "Src Point to", "Des. Alias", "Des. Point to", "Status"), show="headings")
+    result_table = ttk.Treeview(file_frame, columns=("Src Alias", "Src Point to", "Des. Alias", "Des. Point to", "Status"), show="headings")
     result_table.heading("Src Alias", text="Src Alias")
     result_table.heading("Src Point to", text="Src Point to")
     result_table.heading("Des. Alias", text="Des. Alias")
     result_table.heading("Des. Point to", text="Des. Point to")
     result_table.heading("Status", text="Status")
-    result_table.pack()
+    result_table.grid(row=1, column=0, columnspan=2, pady=5)
 
-    # Progress Bar and Count labels
+    # Progress bar
     progress_frame = tk.Frame(root)
     progress_frame.pack(pady=10)
-
-    progress_bar = ttk.Progressbar(progress_frame, length=300, mode="determinate")
+    progress_bar = ttk.Progressbar(progress_frame, length=200, mode="determinate")
     progress_bar.grid(row=0, column=0, padx=5)
 
-    a_count_label = tk.Label(progress_frame, text="A Records: 0")
-    a_count_label.grid(row=0, column=1, padx=5)
-    cname_count_label = tk.Label(progress_frame, text="CNAME Records: 0")
-    cname_count_label.grid(row=0, column=2, padx=5)
-    total_count_label = tk.Label(progress_frame, text="Total Records: 0")
-    total_count_label.grid(row=0, column=3, padx=5)
+    # Buttons for browsing and applying changes
+    browse_button = tk.Button(file_frame, text="Browse", command=lambda: browse_file(result_table))
+    browse_button.grid(row=0, column=1, padx=5)
 
-    # Search box
+    # A record and CNAME record checkboxes
+    update_a = tk.BooleanVar()
+    update_cname = tk.BooleanVar()
+
+    # Apply updates button
+    apply_button = tk.Button(root, text="Apply Update", command=lambda: apply_updates(result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label))
+    apply_button.pack(pady=10)
+
+    # Clear Information button
+    clear_button = tk.Button(root, text="Clear Information", command=lambda: clear_information(result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label))
+    clear_button.pack(pady=10)
+
+    # Add search functionality
     search_frame = tk.Frame(root)
     search_frame.pack(pady=10)
-
     tk.Label(search_frame, text="Search:").grid(row=0, column=0, padx=5)
     search_entry = tk.Entry(search_frame)
     search_entry.grid(row=0, column=1, padx=5)
     search_entry.bind("<KeyRelease>", lambda event: filter_results(event.widget.get(), result_table))
+
+    # Count labels
+    count_frame = tk.Frame(root)
+    count_frame.pack(pady=5)
+    a_count_label = tk.Label(count_frame, text="A Records: 0")
+    a_count_label.grid(row=0, column=0, padx=5)
+    cname_count_label = tk.Label(count_frame, text="CNAME Records: 0")
+    cname_count_label.grid(row=0, column=1, padx=5)
+    total_count_label = tk.Label(count_frame, text="Total Records: 0")
+    total_count_label.grid(row=0, column=2, padx=5)
 
     root.mainloop()
 
