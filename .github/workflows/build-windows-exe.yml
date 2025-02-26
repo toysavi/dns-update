@@ -56,7 +56,12 @@ jobs:
       - name: Build Single EXE
         run: |
           cd backend
-          pyinstaller --onefile --windowed --add-data "frontend/build;frontend/build" --hidden-import=PyQt5.QtWebEngineWidgets backend.py
+          if (Test-Path "frontend\build") {
+            pyinstaller --onefile --windowed --add-data "frontend/build;frontend/build" --hidden-import=PyQt5.QtWebEngineWidgets backend.py
+          } else {
+            Write-Error "Frontend build folder not found."
+            exit 1
+          }
 
       # 🔹 Step 8: Upload EXE Artifact
       - name: Upload EXE Artifact
