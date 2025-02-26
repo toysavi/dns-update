@@ -4,3 +4,4 @@ pandas==1.4.3    # If you need pandas for handling CSV files
 Qt
 qmake
 winget
+pip
