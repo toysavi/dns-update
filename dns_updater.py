@@ -230,39 +230,29 @@ def show_main_window():
     search_entry.grid(row=0, column=5, padx=5)
     search_entry.bind("<KeyRelease>", lambda event: filter_results(search_entry.get(), result_table))
 
-    # Result table
-    columns = ("Record Type", "Source Name", "Source IP", "Destination Name", "Destination IP", "Status")
+    # Result table with updated column names
+    columns = ("Record Type", "Src Alias", "Src Point to", "Des. Alias", "Des. Point to", "Status")
     result_table = ttk.Treeview(root, columns=columns, show="headings")
+
     for col in columns:
         result_table.heading(col, text=col)
-    result_table.pack(pady=10, fill="both", expand=True)
+        result_table.column(col, anchor="center")
+
+    result_table.pack(pady=10)
 
     # Progress bar and count labels
-    progress_frame = tk.Frame(root)
-    progress_frame.pack(pady=10)
-    progress_bar = ttk.Progressbar(progress_frame, orient="horizontal", length=400, mode="determinate")
-    progress_bar.grid(row=0, column=0, padx=5)
-    a_count_label = tk.Label(progress_frame, text="A Records: 0")
-    a_count_label.grid(row=0, column=1, padx=5)
-    cname_count_label = tk.Label(progress_frame, text="CNAME Records: 0")
-    cname_count_label.grid(row=0, column=2, padx=5)
-    total_count_label = tk.Label(progress_frame, text="Total Records: 0")
-    total_count_label.grid(row=0, column=3, padx=5)
+    progress_bar = ttk.Progressbar(root, length=400, mode="determinate")
+    progress_bar.pack(pady=10)
 
-    # Exit button
-    tk.Button(root, text="Exit", command=root.quit).pack(pady=5)
+    # A, CNAME, and total count labels
+    a_count_label = tk.Label(root, text="A Records: 0")
+    a_count_label.pack(pady=5)
+    cname_count_label = tk.Label(root, text="CNAME Records: 0")
+    cname_count_label.pack(pady=5)
+    total_count_label = tk.Label(root, text="Total Records: 0")
+    total_count_label.pack(pady=5)
 
-    # Start the GUI
     root.mainloop()
 
-# Function to show the loading screen
-def show_loading_screen():
-    loading_root = tk.Tk()
-    loading_root.title("Loading")
-    loading_label = tk.Label(loading_root, text="Loading, please wait...")
-    loading_label.pack(pady=20, padx=20)
-    loading_root.after(2000, lambda: (loading_root.destroy(), show_main_window()))  # Adjust the delay as needed
-    loading_root.mainloop()
-
-# Show the loading screen
-show_loading_screen()
+# Run the main window
+show_main_window()
