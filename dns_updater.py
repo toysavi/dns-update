@@ -56,7 +56,7 @@ def read_csv_file(file_path):
         return pd.DataFrame()
 
 # Function to update A and CNAME records in AD DNS
-def update_dns(csv_file, result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label):
+def update_dns(result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label):
     try:
         # Delay import of pythoncom and win32com.client until needed
         import pythoncom
@@ -65,15 +65,19 @@ def update_dns(csv_file, result_table, progress_bar, update_a, update_cname, a_c
         # Connect to WMI DNS Client
         pythoncom.CoInitialize()
         dns_client = win32com.client.GetObject("winmgmts:\\\\.\\root\\MicrosoftDNS")
-        
-        # Read CSV file
-        df = read_csv_file(csv_file)
 
+        # Read CSV file
+        if csv_data_cache is None:
+            messagebox.showerror("Error", "No CSV file loaded.")
+            return
+        
+        df = csv_data_cache["data"]
+        
         # Confirm before applying changes
         confirm = messagebox.askyesno("Confirm Update", f"Update {len(df)} DNS records?")
         if not confirm:
             return
-        
+
         total_records = len(df)
         progress_bar["maximum"] = total_records
 
@@ -81,16 +85,17 @@ def update_dns(csv_file, result_table, progress_bar, update_a, update_cname, a_c
         cname_count = 0
 
         for index, row in df.iterrows():
-            record_type = row["RecordType"].strip().upper()
-            record_name = row["RecordName"].strip()
-            new_value = row["NewValue"].strip()
+            src_alias = row["Src Alias"].strip()
+            src_point_to = row["Src Point to"].strip()
+            des_alias = row["Des. Alias"].strip()
+            des_point_to = row["Des. Point to"].strip()
             status = "Unknown"
 
             try:
-                if record_type == "A" and update_a:
+                if update_a:
                     # Update A Record (Change IP Address)
                     existing_records = dns_client.ExecQuery(
-                        f"SELECT * FROM MicrosoftDNS_AType WHERE OwnerName='{record_name}'"
+                        f"SELECT * FROM MicrosoftDNS_AType WHERE OwnerName='{src_alias}'"
                     )
 
                     if len(existing_records) > 0:
@@ -98,17 +103,17 @@ def update_dns(csv_file, result_table, progress_bar, update_a, update_cname, a_c
                         for record in existing_records:
                             record.Delete_()
 
-                    # Create new A record
+                    # Create new A record for destination
                     dns_client.Get("MicrosoftDNS_AType").CreateInstanceFromPropertyData(
-                        record_name.split('.')[-2], record_name, 600, new_value
+                        des_alias.split('.')[-2], des_alias, 600, des_point_to
                     )
                     status = "Successful"
                     a_count += 1
 
-                elif record_type == "CNAME" and update_cname:
+                elif update_cname:
                     # Update CNAME Record
                     existing_records = dns_client.ExecQuery(
-                        f"SELECT * FROM MicrosoftDNS_CNAMEType WHERE OwnerName='{record_name}'"
+                        f"SELECT * FROM MicrosoftDNS_CNAMEType WHERE OwnerName='{src_alias}'"
                     )
 
                     if len(existing_records) > 0:
@@ -116,22 +121,22 @@ def update_dns(csv_file, result_table, progress_bar, update_a, update_cname, a_c
                         for record in existing_records:
                             record.Delete_()
 
-                    # Create new CNAME record
+                    # Create new CNAME record for destination
                     dns_client.Get("MicrosoftDNS_CNAMEType").CreateInstanceFromPropertyData(
-                        record_name.split('.')[-2], record_name, 600, new_value
+                        des_alias.split('.')[-2], des_alias, 600, des_point_to
                     )
                     status = "Successful"
                     cname_count += 1
 
                 else:
-                    raise Exception(f"Invalid RecordType: {record_type}")
+                    raise Exception(f"Invalid RecordType: A or CNAME")
 
             except Exception as e:
-                print(f"Failed to update {record_name}: {e}")
+                print(f"Failed to update {src_alias}: {e}")
                 status = f"Failed: {e}"
 
             # Update result table
-            result_table.insert("", "end", values=(record_type, record_name, "", new_value, status))
+            result_table.insert("", "end", values=(src_alias, src_point_to, des_alias, des_point_to, status))
             progress_bar["value"] = index + 1
 
             # Update count labels
@@ -160,7 +165,7 @@ def apply_updates(result_table, progress_bar, update_a, update_cname, a_count_la
     if csv_data_cache is None:
         messagebox.showerror("Error", "No CSV file selected.")
         return
-    threading.Thread(target=update_dns, args=(csv_data_cache["file_path"], result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label)).start()
+    threading.Thread(target=update_dns, args=(result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label)).start()
 
 # Function to clear the information
 def clear_information(result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label):
@@ -222,30 +227,25 @@ def show_main_window():
 
     # Apply and Clear buttons
     tk.Button(frame, text="Apply Updates", command=lambda: apply_updates(result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label)).grid(row=0, column=2, padx=5)
-    tk.Button(frame, text="Clear", command=lambda: clear_information(result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label)).grid(row=0, column=3, padx=5)
+    tk.Button(frame, text="Clear Information", command=lambda: clear_information(result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label)).grid(row=0, column=3, padx=5)
 
-    # Search box
-    tk.Label(frame, text="Search:").grid(row=0, column=4, padx=5)
-    search_entry = tk.Entry(frame)
-    search_entry.grid(row=0, column=5, padx=5)
-    search_entry.bind("<KeyRelease>", lambda event: filter_results(search_entry.get(), result_table))
+    # Result Table
+    result_frame = tk.Frame(root)
+    result_frame.pack(pady=10)
 
-    # Result table with updated column names
-    columns = ("Record Type", "Src Alias", "Src Point to", "Des. Alias", "Des. Point to", "Status")
-    result_table = ttk.Treeview(root, columns=columns, show="headings", height=15)
+    result_table = ttk.Treeview(result_frame, columns=("Src Alias", "Src Point to", "Des. Alias", "Des. Point to", "Status"), show="headings")
+    result_table.heading("Src Alias", text="Src Alias")
+    result_table.heading("Src Point to", text="Src Point to")
+    result_table.heading("Des. Alias", text="Des. Alias")
+    result_table.heading("Des. Point to", text="Des. Point to")
+    result_table.heading("Status", text="Status")
+    result_table.pack()
 
-    for col in columns:
-        result_table.heading(col, text=col)
-        result_table.column(col, anchor="center", width=150)
-
-    result_table.pack(pady=10)
-
-    # Frame for progress bar and count labels
+    # Progress Bar and Count labels
     progress_frame = tk.Frame(root)
     progress_frame.pack(pady=10)
 
-    # Progress bar and count labels
-    progress_bar = ttk.Progressbar(progress_frame, length=400, mode="determinate")
+    progress_bar = ttk.Progressbar(progress_frame, length=300, mode="determinate")
     progress_bar.grid(row=0, column=0, padx=5)
 
     a_count_label = tk.Label(progress_frame, text="A Records: 0")
