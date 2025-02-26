@@ -36,7 +36,7 @@ jobs:
         pyinstaller --onefile --windowed --icon=dist/img/icon.ico src/dns_updater_gui.py
 
     - name: Upload executable
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: dns_updater-exe
         path: dist/DNS_Updater.exe
