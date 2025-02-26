@@ -1,23 +1,15 @@
-from flask import Flask, jsonify, request
-import socket
+from flask import Flask, send_from_directory
+import os
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="frontend/build")
 
-@app.route('/dns_records', methods=['GET'])
-def get_dns_records():
-    # Simulate fetching DNS records, can be adapted to actual DNS fetch logic
-    records = [
-        {"name": "example.com", "type": "A", "ip": "192.168.1.1"},
-        {"name": "sub.example.com", "type": "CNAME", "point_to": "example.com"}
-    ]
-    return jsonify(records)
+@app.route("/")
+def serve_react():
+    return send_from_directory("frontend/build", "index.html")
 
-@app.route('/update_dns', methods=['POST'])
-def update_dns_records():
-    data = request.get_json()
-    # Simulate DNS record update logic here
-    print(f"Updating DNS Records: {data}")
-    return jsonify({"status": "success", "message": "Records updated successfully!"})
+@app.route("/<path:path>")
+def serve_static(path):
+    return send_from_directory("frontend/build", path)
 
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)

@@ -1,4 +1,4 @@
-name: Build and Deploy Frontend & Backend
+name: Build and Package Frontend & Backend
 
 on:
   push:
@@ -8,78 +8,48 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest  # Use `windows-latest` if you need to run on Windows
+    runs-on: windows-latest  # Use Windows to support PyInstaller EXE build
 
     steps:
-      # Step 1: Checkout the repository
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Step 2: Set up Node.js for Frontend (React)
-      - name: Set up Node.js for Frontend
+      # 🔹 Step 1: Set up Node.js for Frontend
+      - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '16'
 
-      # Step 3: Install Frontend Dependencies
-      - name: Install Frontend Dependencies
-        run: |
-          cd frontend  # Navigate to frontend folder
-          npm install  # Install dependencies
-
-      # Step 4: Build Frontend (React)
+      # 🔹 Step 2: Install & Build React Frontend
       - name: Build Frontend
         run: |
-          cd frontend  # Navigate to frontend folder
-          npm run build  # Build the React app
+          cd frontend
+          npm install
+          npm run build
+          mv build ../backend/frontend  # Move build to backend folder
 
-      # Step 5: Upload Frontend Build Artifacts (optional)
-      - name: Upload Frontend Build Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-build
-          path: frontend/build  # Path to the React build folder
-
-      # Step 6: Set up Python for Backend
-      - name: Set up Python for Backend
+      # 🔹 Step 3: Set up Python for Backend
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
-      # Step 7: Install Backend Dependencies
+      # 🔹 Step 4: Install Python Dependencies
       - name: Install Backend Dependencies
         run: |
-          cd backend  # Navigate to backend folder
+          cd backend
           python -m pip install --upgrade pip
-          pip install -r requirements.txt  # Install Python dependencies
+          pip install -r requirements.txt
 
-      # # Step 8: Run Backend Tests (Optional)
-      # - name: Run Backend Tests
-      #   run: |
-      #     cd backend
-      #     pytest  # You can use unittest or any test runner you prefer
-
-      # Step 9: Build Backend EXE (Optional)
-      - name: Build Backend EXE (Optional with PyInstaller)
+      # 🔹 Step 5: Package Backend (with Frontend) into a Single EXE
+      - name: Build Single EXE
         run: |
           cd backend
-          pyinstaller --onefile --windowed --icon=icon.ico backend.py  # Build EXE for backend
+          pyinstaller --onefile --windowed --add-data "frontend;frontend" --icon=icon.ico backend.py
 
-      # Step 10: Upload Backend EXE Artifact
-      - name: Upload Backend EXE Artifact
+      # 🔹 Step 6: Upload EXE Artifact
+      - name: Upload EXE Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: backend-exe
-          path: backend/dist/dns_updater.exe  # Path to the compiled EXE file
-
-      # Step 11: Deploy Frontend (Optional - Deploy to a cloud platform)
-      - name: Deploy Frontend
-        run: |
-          # You could deploy the frontend to a cloud platform like AWS S3, Netlify, etc.
-          deploy-frontend-command --source=frontend/build --destination=your-deployment-path
-
-      # Step 12: Deploy Backend (Optional - Deploy to a cloud platform or server)
-      - name: Deploy Backend
-        run: |
-          # You could deploy the backend to cloud platforms, Docker containers, etc.
-          deploy-backend-command --source=backend/dist/dns_updater.exe --destination=your-backend-server
+          name: full-app-exe
+          path: backend/dist/backend.exe  # Path to final EXE
