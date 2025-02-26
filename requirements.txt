@@ -1,7 +1,7 @@
+pip
 pyqt5==5.15.4
 pyinstaller==5.0.1
 pandas==1.4.3    # If you need pandas for handling CSV files
 Qt
 qmake
 winget
-pip
