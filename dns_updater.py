@@ -195,13 +195,10 @@ def show_main_window():
     # GUI Setup
     root = tk.Tk()
     root.title("DNS Updater (A & CNAME Records)")
-    
-    # Make the window full screen or maximized
-    root.state('zoomed')  # Windows-specific
 
     # Frame for file selection and DNS zone
     file_frame = tk.Frame(root)
-    file_frame.pack(pady=10, fill="both", expand=True)
+    file_frame.pack(pady=10)
 
     # File selection button
     tk.Label(file_frame, text="Select a CSV file to update A & CNAME records:").grid(row=0, column=0, padx=5)
@@ -215,7 +212,7 @@ def show_main_window():
 
     # Frame for checkboxes, apply, clear, and search box
     frame = tk.Frame(root)
-    frame.pack(pady=10, fill="both", expand=True)
+    frame.pack(pady=10)
 
     # Checkboxes for selecting record types to update
     update_a = tk.BooleanVar()
@@ -242,7 +239,7 @@ def show_main_window():
 
     # Progress bar and count labels
     progress_frame = tk.Frame(root)
-    progress_frame.pack(pady=10, fill="both", expand=True)
+    progress_frame.pack(pady=10)
     progress_bar = ttk.Progressbar(progress_frame, orient="horizontal", length=400, mode="determinate")
     progress_bar.grid(row=0, column=0, padx=5)
     a_count_label = tk.Label(progress_frame, text="A Records: 0")
@@ -252,8 +249,20 @@ def show_main_window():
     total_count_label = tk.Label(progress_frame, text="Total Records: 0")
     total_count_label.grid(row=0, column=3, padx=5)
 
-    # Start the GUI loop
+    # Exit button
+    tk.Button(root, text="Exit", command=root.quit).pack(pady=5)
+
+    # Start the GUI
     root.mainloop()
 
-# Run the app
-show_main_window()
+# Function to show the loading screen
+def show_loading_screen():
+    loading_root = tk.Tk()
+    loading_root.title("Loading")
+    loading_label = tk.Label(loading_root, text="Loading, please wait...")
+    loading_label.pack(pady=20, padx=20)
+    loading_root.after(2000, lambda: (loading_root.destroy(), show_main_window()))  # Adjust the delay as needed
+    loading_root.mainloop()
+
+# Show the loading screen
+show_loading_screen()
