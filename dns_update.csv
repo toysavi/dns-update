@@ -1,0 +1,3 @@
+RecordType, RecordName,NewValue
+CNAME,www.exaple.com,web1.example.com
+A,web1.example.com,1.1.1.1

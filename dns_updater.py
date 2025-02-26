@@ -232,25 +232,28 @@ def show_main_window():
 
     # Result table with updated column names
     columns = ("Record Type", "Src Alias", "Src Point to", "Des. Alias", "Des. Point to", "Status")
-    result_table = ttk.Treeview(root, columns=columns, show="headings")
+    result_table = ttk.Treeview(root, columns=columns, show="headings", height=15)
 
     for col in columns:
         result_table.heading(col, text=col)
-        result_table.column(col, anchor="center")
+        result_table.column(col, anchor="center", width=150)
 
     result_table.pack(pady=10)
 
-    # Progress bar and count labels
-    progress_bar = ttk.Progressbar(root, length=400, mode="determinate")
-    progress_bar.pack(pady=10)
+    # Frame for progress bar and count labels
+    progress_frame = tk.Frame(root)
+    progress_frame.pack(pady=10)
 
-    # A, CNAME, and total count labels
-    a_count_label = tk.Label(root, text="A Records: 0")
-    a_count_label.pack(pady=5)
-    cname_count_label = tk.Label(root, text="CNAME Records: 0")
-    cname_count_label.pack(pady=5)
-    total_count_label = tk.Label(root, text="Total Records: 0")
-    total_count_label.pack(pady=5)
+    # Progress bar and count labels
+    progress_bar = ttk.Progressbar(progress_frame, length=400, mode="determinate")
+    progress_bar.grid(row=0, column=0, padx=5)
+
+    a_count_label = tk.Label(progress_frame, text="A Records: 0")
+    a_count_label.grid(row=0, column=1, padx=5)
+    cname_count_label = tk.Label(progress_frame, text="CNAME Records: 0")
+    cname_count_label.grid(row=0, column=2, padx=5)
+    total_count_label = tk.Label(progress_frame, text="Total Records: 0")
+    total_count_label.grid(row=0, column=3, padx=5)
 
     root.mainloop()
 
