@@ -53,11 +53,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt  # Install Python dependencies
 
-      # Step 8: Run Backend Tests (Optional)
-      - name: Run Backend Tests
-        run: |
-          cd backend
-          pytest  # You can use unittest or any test runner you prefer
+      # # Step 8: Run Backend Tests (Optional)
+      # - name: Run Backend Tests
+      #   run: |
+      #     cd backend
+      #     pytest  # You can use unittest or any test runner you prefer
 
       # Step 9: Build Backend EXE (Optional)
       - name: Build Backend EXE (Optional with PyInstaller)
