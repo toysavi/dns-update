@@ -50,15 +50,13 @@ def read_csv_file(file_path):
     try:
         df = pd.read_csv(file_path)
         csv_data_cache = {"file_path": file_path, "data": df}
-        
-        # Update result table to show CSV upload success message
         return df
     except Exception as e:
         messagebox.showerror("Error", f"Failed to read CSV file: {str(e)}")
         return pd.DataFrame()
 
 # Function to update A and CNAME records in AD DNS
-def update_dns(result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label):
+def update_dns(csv_file, result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label):
     try:
         # Delay import of pythoncom and win32com.client until needed
         import pythoncom
@@ -67,19 +65,15 @@ def update_dns(result_table, progress_bar, update_a, update_cname, a_count_label
         # Connect to WMI DNS Client
         pythoncom.CoInitialize()
         dns_client = win32com.client.GetObject("winmgmts:\\\\.\\root\\MicrosoftDNS")
-
+        
         # Read CSV file
-        if csv_data_cache is None:
-            messagebox.showerror("Error", "No CSV file loaded.")
-            return
-        
-        df = csv_data_cache["data"]
-        
+        df = read_csv_file(csv_file)
+
         # Confirm before applying changes
         confirm = messagebox.askyesno("Confirm Update", f"Update {len(df)} DNS records?")
         if not confirm:
             return
-
+        
         total_records = len(df)
         progress_bar["maximum"] = total_records
 
@@ -87,17 +81,16 @@ def update_dns(result_table, progress_bar, update_a, update_cname, a_count_label
         cname_count = 0
 
         for index, row in df.iterrows():
-            src_alias = row["Src Alias"].strip()
-            src_point_to = row["Src Point to"].strip()
-            des_alias = row["Des. Alias"].strip()
-            des_point_to = row["Des. Point to"].strip()
+            record_type = row["RecordType"].strip().upper()
+            record_name = row["RecordName"].strip()
+            new_value = row["NewValue"].strip()
             status = "Unknown"
 
             try:
-                if update_a:
+                if record_type == "A" and update_a:
                     # Update A Record (Change IP Address)
                     existing_records = dns_client.ExecQuery(
-                        f"SELECT * FROM MicrosoftDNS_AType WHERE OwnerName='{src_alias}'"
+                        f"SELECT * FROM MicrosoftDNS_AType WHERE OwnerName='{record_name}'"
                     )
 
                     if len(existing_records) > 0:
@@ -105,17 +98,17 @@ def update_dns(result_table, progress_bar, update_a, update_cname, a_count_label
                         for record in existing_records:
                             record.Delete_()
 
-                    # Create new A record for destination
+                    # Create new A record
                     dns_client.Get("MicrosoftDNS_AType").CreateInstanceFromPropertyData(
-                        des_alias.split('.')[-2], des_alias, 600, des_point_to
+                        record_name.split('.')[-2], record_name, 600, new_value
                     )
                     status = "Successful"
                     a_count += 1
 
-                elif update_cname:
+                elif record_type == "CNAME" and update_cname:
                     # Update CNAME Record
                     existing_records = dns_client.ExecQuery(
-                        f"SELECT * FROM MicrosoftDNS_CNAMEType WHERE OwnerName='{src_alias}'"
+                        f"SELECT * FROM MicrosoftDNS_CNAMEType WHERE OwnerName='{record_name}'"
                     )
 
                     if len(existing_records) > 0:
@@ -123,22 +116,22 @@ def update_dns(result_table, progress_bar, update_a, update_cname, a_count_label
                         for record in existing_records:
                             record.Delete_()
 
-                    # Create new CNAME record for destination
+                    # Create new CNAME record
                     dns_client.Get("MicrosoftDNS_CNAMEType").CreateInstanceFromPropertyData(
-                        des_alias.split('.')[-2], des_alias, 600, des_point_to
+                        record_name.split('.')[-2], record_name, 600, new_value
                     )
                     status = "Successful"
                     cname_count += 1
 
                 else:
-                    raise Exception(f"Invalid RecordType: A or CNAME")
+                    raise Exception(f"Invalid RecordType: {record_type}")
 
             except Exception as e:
-                print(f"Failed to update {src_alias}: {e}")
+                print(f"Failed to update {record_name}: {e}")
                 status = f"Failed: {e}"
 
             # Update result table
-            result_table.insert("", "end", values=(src_alias, src_point_to, des_alias, des_point_to, status))
+            result_table.insert("", "end", values=(record_type, record_name, "", new_value, status))
             progress_bar["value"] = index + 1
 
             # Update count labels
@@ -152,13 +145,10 @@ def update_dns(result_table, progress_bar, update_a, update_cname, a_count_label
         pythoncom.CoUninitialize()
 
 # Function to browse and select CSV
-def browse_file(result_table):
+def browse_file():
     def read_file_in_background(file_path):
         global csv_data_cache
         csv_data_cache = {"file_path": file_path, "data": read_csv_file(file_path)}
-        
-        # Update result table to show CSV upload success message after reading
-        result_table.insert("", "end", values=("CSV is uploaded", "", "", "", ""))
         messagebox.showinfo("File Selected", f"Selected file: {file_path}")
 
     file_path = filedialog.askopenfilename(initialdir="C:\\", filetypes=[("CSV Files", "*.csv")])
@@ -170,7 +160,7 @@ def apply_updates(result_table, progress_bar, update_a, update_cname, a_count_la
     if csv_data_cache is None:
         messagebox.showerror("Error", "No CSV file selected.")
         return
-    threading.Thread(target=update_dns, args=(result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label)).start()
+    threading.Thread(target=update_dns, args=(csv_data_cache["file_path"], result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label)).start()
 
 # Function to clear the information
 def clear_information(result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label):
@@ -212,55 +202,67 @@ def show_main_window():
 
     # File selection button
     tk.Label(file_frame, text="Select a CSV file to update A & CNAME records:").grid(row=0, column=0, padx=5)
-    result_table = ttk.Treeview(file_frame, columns=("Src Alias", "Src Point to", "Des. Alias", "Des. Point to", "Status"), show="headings")
-    result_table.heading("Src Alias", text="Src Alias")
-    result_table.heading("Src Point to", text="Src Point to")
-    result_table.heading("Des. Alias", text="Des. Alias")
-    result_table.heading("Des. Point to", text="Des. Point to")
-    result_table.heading("Status", text="Status")
-    result_table.grid(row=1, column=0, columnspan=2, pady=5)
+    tk.Button(file_frame, text="Browse CSV", command=browse_file).grid(row=0, column=1, padx=5)
 
-    # Progress bar
-    progress_frame = tk.Frame(root)
-    progress_frame.pack(pady=10)
-    progress_bar = ttk.Progressbar(progress_frame, length=200, mode="determinate")
-    progress_bar.grid(row=0, column=0, padx=5)
+    # DNS Zone Combobox
+    tk.Label(file_frame, text="Select DNS Zone:").grid(row=0, column=2, padx=5)
+    dns_zone_combobox = ttk.Combobox(file_frame)
+    dns_zone_combobox.grid(row=0, column=3, padx=5)
+    dns_zone_combobox.bind("<Button-1>", on_combobox_click)
 
-    # Buttons for browsing and applying changes
-    browse_button = tk.Button(file_frame, text="Browse", command=lambda: browse_file(result_table))
-    browse_button.grid(row=0, column=1, padx=5)
+    # Frame for checkboxes, apply, clear, and search box
+    frame = tk.Frame(root)
+    frame.pack(pady=10)
 
-    # A record and CNAME record checkboxes
+    # Checkboxes for selecting record types to update
     update_a = tk.BooleanVar()
     update_cname = tk.BooleanVar()
+    tk.Checkbutton(frame, text="Update A Records", variable=update_a).grid(row=0, column=0, padx=5)
+    tk.Checkbutton(frame, text="Update CNAME Records", variable=update_cname).grid(row=0, column=1, padx=5)
 
-    # Apply updates button
-    apply_button = tk.Button(root, text="Apply Update", command=lambda: apply_updates(result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label))
-    apply_button.pack(pady=10)
+    # Apply and Clear buttons
+    tk.Button(frame, text="Apply Updates", command=lambda: apply_updates(result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label)).grid(row=0, column=2, padx=5)
+    tk.Button(frame, text="Clear", command=lambda: clear_information(result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label)).grid(row=0, column=3, padx=5)
 
-    # Clear Information button
-    clear_button = tk.Button(root, text="Clear Information", command=lambda: clear_information(result_table, progress_bar, update_a, update_cname, a_count_label, cname_count_label, total_count_label))
-    clear_button.pack(pady=10)
+    # Search box
+    tk.Label(frame, text="Search:").grid(row=0, column=4, padx=5)
+    search_entry = tk.Entry(frame)
+    search_entry.grid(row=0, column=5, padx=5)
+    search_entry.bind("<KeyRelease>", lambda event: filter_results(search_entry.get(), result_table))
 
-    # Add search functionality
-    search_frame = tk.Frame(root)
-    search_frame.pack(pady=10)
-    tk.Label(search_frame, text="Search:").grid(row=0, column=0, padx=5)
-    search_entry = tk.Entry(search_frame)
-    search_entry.grid(row=0, column=1, padx=5)
-    search_entry.bind("<KeyRelease>", lambda event: filter_results(event.widget.get(), result_table))
+    # Result table
+    columns = ("Record Type", "Source Name", "Source IP", "Destination Name", "Destination IP", "Status")
+    result_table = ttk.Treeview(root, columns=columns, show="headings")
+    for col in columns:
+        result_table.heading(col, text=col)
+    result_table.pack(pady=10, fill="both", expand=True)
 
-    # Count labels
-    count_frame = tk.Frame(root)
-    count_frame.pack(pady=5)
-    a_count_label = tk.Label(count_frame, text="A Records: 0")
-    a_count_label.grid(row=0, column=0, padx=5)
-    cname_count_label = tk.Label(count_frame, text="CNAME Records: 0")
-    cname_count_label.grid(row=0, column=1, padx=5)
-    total_count_label = tk.Label(count_frame, text="Total Records: 0")
-    total_count_label.grid(row=0, column=2, padx=5)
+    # Progress bar and count labels
+    progress_frame = tk.Frame(root)
+    progress_frame.pack(pady=10)
+    progress_bar = ttk.Progressbar(progress_frame, orient="horizontal", length=400, mode="determinate")
+    progress_bar.grid(row=0, column=0, padx=5)
+    a_count_label = tk.Label(progress_frame, text="A Records: 0")
+    a_count_label.grid(row=0, column=1, padx=5)
+    cname_count_label = tk.Label(progress_frame, text="CNAME Records: 0")
+    cname_count_label.grid(row=0, column=2, padx=5)
+    total_count_label = tk.Label(progress_frame, text="Total Records: 0")
+    total_count_label.grid(row=0, column=3, padx=5)
 
+    # Exit button
+    tk.Button(root, text="Exit", command=root.quit).pack(pady=5)
+
+    # Start the GUI
     root.mainloop()
 
-if __name__ == "__main__":
-    show_main_window()
+# Function to show the loading screen
+def show_loading_screen():
+    loading_root = tk.Tk()
+    loading_root.title("Loading")
+    loading_label = tk.Label(loading_root, text="Loading, please wait...")
+    loading_label.pack(pady=20, padx=20)
+    loading_root.after(2000, lambda: (loading_root.destroy(), show_main_window()))  # Adjust the delay as needed
+    loading_root.mainloop()
+
+# Show the loading screen
+show_loading_screen()
