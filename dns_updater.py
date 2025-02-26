@@ -134,10 +134,13 @@ def update_dns(csv_file, result_table, progress_bar, update_a, update_cname, a_c
             result_table.insert("", "end", values=(record_type, record_name, "", new_value, status))
             progress_bar["value"] = index + 1
 
-            # Update count labels
-            a_count_label.config(text=f"A Records: {a_count}")
-            cname_count_label.config(text=f"CNAME Records: {cname_count}")
-            total_count_label.config(text=f"Total Records: {a_count + cname_count}")
+            # Update count labels using after method to ensure thread safety
+            def update_labels():
+                a_count_label.config(text=f"A Records: {a_count}")
+                cname_count_label.config(text=f"CNAME Records: {cname_count}")
+                total_count_label.config(text=f"Total Records: {a_count + cname_count}")
+            
+            result_table.after(0, update_labels)
 
     except Exception as e:
         messagebox.showerror("Error", f"Error: {str(e)}")
@@ -231,38 +234,4 @@ def show_main_window():
     search_entry.bind("<KeyRelease>", lambda event: filter_results(search_entry.get(), result_table))
 
     # Result table
-    columns = ("Record Type", "Source Name", "Source IP", "Destination Name", "Destination IP", "Status")
-    result_table = ttk.Treeview(root, columns=columns, show="headings")
-    for col in columns:
-        result_table.heading(col, text=col)
-    result_table.pack(pady=10, fill="both", expand=True)
-
-    # Progress bar and count labels
-    progress_frame = tk.Frame(root)
-    progress_frame.pack(pady=10)
-    progress_bar = ttk.Progressbar(progress_frame, orient="horizontal", length=400, mode="determinate")
-    progress_bar.grid(row=0, column=0, padx=5)
-    a_count_label = tk.Label(progress_frame, text="A Records: 0")
-    a_count_label.grid(row=0, column=1, padx=5)
-    cname_count_label = tk.Label(progress_frame, text="CNAME Records: 0")
-    cname_count_label.grid(row=0, column=2, padx=5)
-    total_count_label = tk.Label(progress_frame, text="Total Records: 0")
-    total_count_label.grid(row=0, column=3, padx=5)
-
-    # Exit button
-    tk.Button(root, text="Exit", command=root.quit).pack(pady=5)
-
-    # Start the GUI
-    root.mainloop()
-
-# Function to show the loading screen
-def show_loading_screen():
-    loading_root = tk.Tk()
-    loading_root.title("Loading")
-    loading_label = tk.Label(loading_root, text="Loading, please wait...")
-    loading_label.pack(pady=20, padx=20)
-    loading_root.after(2000, lambda: (loading_root.destroy(), show_main_window()))  # Adjust the delay as needed
-    loading_root.mainloop()
-
-# Show the loading screen
-show_loading_screen()
+    columns = ("Record Type", "
